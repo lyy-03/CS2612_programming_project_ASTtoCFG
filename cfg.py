@@ -1,5 +1,7 @@
 from my_ast import AssignmentNode, IfNode, WhileNode, BuiltinNode
 
+global_counter = {"id": 0}
+
 class CFGNode:
     def __init__(self, ast_node, label=None):
         self.ast_node = ast_node
@@ -41,79 +43,67 @@ class CFG:
                 result.append(f"  Content: {self.basic_blocks[node]}")
         return "\n".join(result)
 
-def ast_to_cfg(ast, cfg, prev_node=None, context=None):
-    context = context or {"while_count": 0, "if_count": 0}  # 添加 if_count 计数器
+def get_unique_label(prefix=""):
+    """生成全局唯一的标签，带可选前缀"""
+    global_counter["id"] += 1
+    return f"{prefix}_{global_counter['id']}"
 
-    if isinstance(ast, AssignmentNode):
-        block_name = prev_node if prev_node else f"block_{len(cfg.basic_blocks)}"
-        cfg.add_to_block(block_name, f"{ast.variable} = {ast.expression}")
-        return block_name
+def ast_to_cfg(ast_node, cfg, current_block):
+    if isinstance(ast_node, AssignmentNode):
+        # 处理赋值语句
+        cfg.add_to_block(current_block, f"{ast_node.variable} = {ast_node.expression}")
+        return current_block
 
-    elif isinstance(ast, IfNode):
-        context["if_count"] += 1
-        if_id = context["if_count"]
+    elif isinstance(ast_node, BuiltinNode):
+        # 处理内置函数调用
+        cfg.add_to_block(current_block, f"{ast_node.function}({', '.join(ast_node.arguments)})")
+        return current_block
 
-        condition_node = CFGNode(ast, label=f"if {ast.condition} (#{if_id})")
-        cfg.add_node(condition_node)
-        if prev_node:
-            cfg.add_edge(prev_node, condition_node)
+    elif isinstance(ast_node, IfNode):
+        # 处理条件分支
+        condition_label = get_unique_label("if")
+        then_label = get_unique_label("then")
+        else_label = get_unique_label("else")
+        merge_label = get_unique_label("merge")
 
-        # Then branch
-        then_entry = CFGNode(f"if_{if_id}_then", label=f"then (#{if_id})")
-        cfg.add_node(then_entry)
-        cfg.add_edge(condition_node, then_entry)
-        last_then_node = None
-        for stmt in ast.then_branch:
-            last_then_node = ast_to_cfg(stmt, cfg, then_entry if last_then_node is None else last_then_node, context)
+        cfg.add_edge(current_block, condition_label)
+        cfg.add_to_block(condition_label, ast_node.condition)
 
-        # Else branch
-        else_entry = CFGNode(f"if_{if_id}_else", label=f"else (#{if_id})")
-        cfg.add_node(else_entry)
-        cfg.add_edge(condition_node, else_entry)
-        last_else_node = None
-        for stmt in ast.else_branch:
-            last_else_node = ast_to_cfg(stmt, cfg, else_entry if last_else_node is None else last_else_node, context)
+        # 处理 then 分支
+        cfg.add_edge(condition_label, then_label)
+        current_then_block = then_label
+        for stmt in ast_node.then_branch:
+            current_then_block = ast_to_cfg(stmt, cfg, current_then_block)
+        cfg.add_edge(current_then_block, merge_label)
 
-        # Merge point
-        merge_node = CFGNode(f"if_{if_id}_merge", label=f"merge (#{if_id})")
-        cfg.add_node(merge_node)
-        if last_then_node:
-            cfg.add_edge(last_then_node, merge_node)
-        if last_else_node:
-            cfg.add_edge(last_else_node, merge_node)
+        # 处理 else 分支
+        cfg.add_edge(condition_label, else_label)
+        current_else_block = else_label
+        for stmt in ast_node.else_branch:
+            current_else_block = ast_to_cfg(stmt, cfg, current_else_block)
+        cfg.add_edge(current_else_block, merge_label)
 
-        return merge_node
+        return merge_label
 
-    elif isinstance(ast, WhileNode):
-        context["while_count"] += 1
-        loop_id = context["while_count"]
-        condition_node = CFGNode(ast, label=f"while {ast.condition} (#{loop_id})")
-        cfg.add_node(condition_node)
-        if prev_node:
-            cfg.add_edge(prev_node, condition_node)
+    elif isinstance(ast_node, WhileNode):
+        # 处理循环
+        entry_label = get_unique_label("while")
+        loop_label = get_unique_label("loop")
+        after_label = get_unique_label("after_loop")
 
-        # Loop body
-        loop_entry = CFGNode(f"loop_{loop_id}", label=f"loop (#{loop_id})")
-        cfg.add_node(loop_entry)
-        cfg.add_edge(condition_node, loop_entry)
-        last_loop_node = None
-        for stmt in ast.body:
-            last_loop_node = ast_to_cfg(stmt, cfg, loop_entry if last_loop_node is None else last_loop_node, context)
+        cfg.add_edge(current_block, entry_label)
+        cfg.add_to_block(entry_label, ast_node.condition)
 
-        # Back to condition
-        if last_loop_node:
-            cfg.add_edge(last_loop_node, condition_node)
+        # 处理循环体
+        cfg.add_edge(entry_label, loop_label)
+        current_loop_block = loop_label
+        for stmt in ast_node.body:
+            current_loop_block = ast_to_cfg(stmt, cfg, current_loop_block)
+        cfg.add_edge(current_loop_block, entry_label)
 
-        # Exit loop
-        after_loop_node = CFGNode(f"after_loop_{loop_id}", label=f"after loop (#{loop_id})")
-        cfg.add_node(after_loop_node)
-        cfg.add_edge(condition_node, after_loop_node)
+        # 处理循环后
+        cfg.add_edge(entry_label, after_label)
+        return after_label
 
-        return after_loop_node
-
-    elif isinstance(ast, BuiltinNode):
-        current_node = CFGNode(ast)
-        cfg.add_node(current_node)
-        if prev_node:
-            cfg.add_edge(prev_node, current_node)
-        return current_node
+    else:
+        raise ValueError(f"Unknown AST node type: {type(ast_node)}")

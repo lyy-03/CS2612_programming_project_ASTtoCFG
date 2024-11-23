@@ -4,37 +4,39 @@ from visualize import visualize_cfg
 
 # 构造复杂的 AST 示例
 ast = [
-    # 初始化变量
     AssignmentNode("x", "10"),
-    AssignmentNode("y", "0"),
-    AssignmentNode("z", "1"),
-
-    # 外层循环
     WhileNode("x > 0", [
-        # 嵌套条件分支
-        IfNode("x % 2 == 0",
-               then_branch=[
-                   AssignmentNode("y", "y + z"),
-                   BuiltinNode("write", ["Even branch executed"])
-               ],
-               else_branch=[
-                   AssignmentNode("z", "z * 2"),
-                   BuiltinNode("write", ["Odd branch executed"])
-               ]),
-
-        # 减少 x
-        AssignmentNode("x", "x - 1"),
-
-        # 内层循环
-        WhileNode("z > 10", [
-            AssignmentNode("z", "z - 5"),
-            BuiltinNode("write", ["Inner loop executed"])
-        ])
+        IfNode("x % 2 == 0", [
+            AssignmentNode("y", "y + 1"),
+            WhileNode("z > 0", [
+                AssignmentNode("z", "z - 1"),
+                BuiltinNode("print", ["Inner loop"])
+            ])
+        ], [
+            AssignmentNode("w", "w * 2"),
+            BuiltinNode("log", ["Odd branch"])
+        ]),
+        AssignmentNode("x", "x - 1")
     ]),
-
-    # 循环结束后调用内置函数
-    BuiltinNode("write", ["Computation Complete"]),
+    BuiltinNode("print", ["Done"]),
+    AssignmentNode("y", "y + 1"),
+    AssignmentNode("x", "y + 1"),
+    WhileNode("x < 0", [
+        IfNode("x % 2 == 0", [
+            AssignmentNode("y", "y + 1"),
+            WhileNode("z > 0", [
+                AssignmentNode("z", "z - 1"),
+                BuiltinNode("print", ["Inner loop"])
+            ])
+        ], [
+            AssignmentNode("w", "w * 2"),
+            BuiltinNode("log", ["Odd branch"])
+        ]),
+        AssignmentNode("x", "x - 1")
+    ])
 ]
+
+
 
 # 转换 AST 为 CFG
 cfg = CFG()
