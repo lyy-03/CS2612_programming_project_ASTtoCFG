@@ -42,7 +42,7 @@ class CFG:
         return "\n".join(result)
 
 def ast_to_cfg(ast, cfg, prev_node=None, context=None):
-    context = context or {"while_count": 0}  # 用于标识循环节点
+    context = context or {"while_count": 0, "if_count": 0}  # 添加 if_count 计数器
 
     if isinstance(ast, AssignmentNode):
         block_name = prev_node if prev_node else f"block_{len(cfg.basic_blocks)}"
@@ -50,13 +50,16 @@ def ast_to_cfg(ast, cfg, prev_node=None, context=None):
         return block_name
 
     elif isinstance(ast, IfNode):
-        condition_node = CFGNode(ast, label=f"if {ast.condition}")
+        context["if_count"] += 1
+        if_id = context["if_count"]
+
+        condition_node = CFGNode(ast, label=f"if {ast.condition} (#{if_id})")
         cfg.add_node(condition_node)
         if prev_node:
             cfg.add_edge(prev_node, condition_node)
 
         # Then branch
-        then_entry = CFGNode("then", label="then")
+        then_entry = CFGNode(f"if_{if_id}_then", label=f"then (#{if_id})")
         cfg.add_node(then_entry)
         cfg.add_edge(condition_node, then_entry)
         last_then_node = None
@@ -64,7 +67,7 @@ def ast_to_cfg(ast, cfg, prev_node=None, context=None):
             last_then_node = ast_to_cfg(stmt, cfg, then_entry if last_then_node is None else last_then_node, context)
 
         # Else branch
-        else_entry = CFGNode("else", label="else")
+        else_entry = CFGNode(f"if_{if_id}_else", label=f"else (#{if_id})")
         cfg.add_node(else_entry)
         cfg.add_edge(condition_node, else_entry)
         last_else_node = None
@@ -72,7 +75,7 @@ def ast_to_cfg(ast, cfg, prev_node=None, context=None):
             last_else_node = ast_to_cfg(stmt, cfg, else_entry if last_else_node is None else last_else_node, context)
 
         # Merge point
-        merge_node = CFGNode("merge", label="merge")
+        merge_node = CFGNode(f"if_{if_id}_merge", label=f"merge (#{if_id})")
         cfg.add_node(merge_node)
         if last_then_node:
             cfg.add_edge(last_then_node, merge_node)
@@ -82,7 +85,6 @@ def ast_to_cfg(ast, cfg, prev_node=None, context=None):
         return merge_node
 
     elif isinstance(ast, WhileNode):
-        # Unique loop entry/exit nodes
         context["while_count"] += 1
         loop_id = context["while_count"]
         condition_node = CFGNode(ast, label=f"while {ast.condition} (#{loop_id})")
@@ -91,7 +93,7 @@ def ast_to_cfg(ast, cfg, prev_node=None, context=None):
             cfg.add_edge(prev_node, condition_node)
 
         # Loop body
-        loop_entry = CFGNode(f"loop_{loop_id}", label=f"loop_{loop_id}")
+        loop_entry = CFGNode(f"loop_{loop_id}", label=f"loop (#{loop_id})")
         cfg.add_node(loop_entry)
         cfg.add_edge(condition_node, loop_entry)
         last_loop_node = None
@@ -103,7 +105,7 @@ def ast_to_cfg(ast, cfg, prev_node=None, context=None):
             cfg.add_edge(last_loop_node, condition_node)
 
         # Exit loop
-        after_loop_node = CFGNode(f"after_loop_{loop_id}", label=f"after_loop_{loop_id}")
+        after_loop_node = CFGNode(f"after_loop_{loop_id}", label=f"after loop (#{loop_id})")
         cfg.add_node(after_loop_node)
         cfg.add_edge(condition_node, after_loop_node)
 
