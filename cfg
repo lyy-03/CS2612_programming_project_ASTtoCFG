@@ -1,0 +1,38 @@
+digraph {
+	"'block_0'" [label="'block_0'"]
+	"'block_0'" -> "while x > 0 do ..."
+	"while x > 0 do ..." [label="while x > 0 do ..."]
+	"while x > 0 do ..." -> "'loop'"
+	"while x > 0 do ..." -> "'after_loop'"
+	"'loop'" [label="'loop'"]
+	"'loop'" -> "if x % 2 == 0 then ... else ..."
+	"if x % 2 == 0 then ... else ..." [label="if x % 2 == 0 then ... else ..."]
+	"if x % 2 == 0 then ... else ..." -> "'then'"
+	"if x % 2 == 0 then ... else ..." -> "'else'"
+	"'then'" [label="'then'"]
+	"'then'" -> "write(Even branch executed)"
+	"'else'" [label="'else'"]
+	"'else'" -> "write(Odd branch executed)"
+	"write(Even branch executed)" [label="write(Even branch executed)"]
+	"write(Even branch executed)" -> "'merge'"
+	"write(Odd branch executed)" [label="write(Odd branch executed)"]
+	"write(Odd branch executed)" -> "'merge'"
+	"'merge'" [label="'merge'"]
+	"'merge'" -> "while z > 10 do ..."
+	"while z > 10 do ..." [label="while z > 10 do ..."]
+	"while z > 10 do ..." -> "'loop'"
+	"while z > 10 do ..." -> "'after_loop'"
+	"'loop'" [label="'loop'"]
+	"'loop'" -> "write(Inner loop executed)"
+	"write(Inner loop executed)" [label="write(Inner loop executed)"]
+	"write(Inner loop executed)" -> "while z > 10 do ..."
+	"'after_loop'" [label="'after_loop'"]
+	"'after_loop'" -> "while x > 0 do ..."
+	"'after_loop'" [label="'after_loop'"]
+	"'after_loop'" -> "write(Computation Complete)"
+	"'block_0'" [label="'block_0'\nx = 10\ny = 0\nz = 1"]
+	"'then'" [label="'then'\ny = y + z"]
+	"'else'" [label="'else'\nz = z * 2"]
+	"'merge'" [label="'merge'\nx = x - 1"]
+	"'loop'" [label="'loop'\nz = z - 5"]
+}

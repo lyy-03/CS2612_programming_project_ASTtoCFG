@@ -38,9 +38,9 @@ ast = [
 
 # 转换 AST 为 CFG
 cfg = CFG()
-prev_node = None
+current_block = None
 for stmt in ast:
-    prev_node = ast_to_cfg(stmt, cfg, prev_node)
+    current_block = ast_to_cfg(stmt, cfg, current_block)
 
 # 打印 CFG 和可视化
 print(cfg)
